@@ -1,5 +1,8 @@
 package no.jckf.gameboy;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+
 import static no.jckf.gameboy.Utils.*;
 
 public class CPU {
@@ -12,11 +15,11 @@ public class CPU {
 	private void n(boolean state) { if (state) { f |= N; } else { f &= ~N; } }
 
 	private static final int H = 0x20;
-	private boolean h() { return (f & N) != 0; }
+	private boolean h() { return (f & H) != 0; }
 	private void h(boolean state) { if (state) { f |= H; } else { f &= ~H; } }
 
 	private static final int C = 0x10;
-	private boolean c() { return (f & c) != 0; }
+	private boolean c() { return (f & C) != 0; }
 	private void c(boolean state) { if (state) { f |= C; } else { f &= ~C; } }
 
 	private MMU mmu;
@@ -24,7 +27,7 @@ public class CPU {
 	private boolean halted = false;
 
 	private int a = 1;
-	private int f = Z & H & C;
+	private int f = Z | H | C;
 
 	private int b = 0;
 	private int c = 0x13;
@@ -76,37 +79,29 @@ public class CPU {
 
 		int opcode = mmu.readByte(pc++) & 0xFF;
 
-		println(hexw(pc - 1) + " " + hexb(opcode));
+		println(hexw(pc - 1) + " " + hexb(opcode) + " " +
+		    (z() ? "Z" : "-") +
+			(n() ? "N" : "-") +
+			(h() ? "H" : "-") +
+			(c() ? "C" : "-")
+		);
 
-		switch (opcode) {
-			case 0x00: _0x00(); break;
-			case 0x01: _0x01(); break;
-			case 0x0B: _0x0B(); break;
-			case 0x18: _0x18(); break;
-			case 0x20: _0x20(); break;
-			case 0x21: _0x21(); break;
-			case 0x23: _0x23(); break;
-			case 0x28: _0x28(); break;
-			case 0x31: _0x31(); break;
-			case 0x36: _0x36(); break;
-			case 0x3E: _0x3E(); break;
-			case 0x47: _0x47(); break;
-			case 0x76: _0x76(); break;
-			case 0x78: _0x78(); break;
-			case 0xB1: _0xB1(); break;
-			case 0xC3: _0xC3(); break;
-			case 0xCB: _0xCB(); break;
-			case 0xCD: _0xCD(); break;
-			case 0xE0: _0xE0(); break;
-			case 0xEA: _0xEA(); break;
-			case 0xF0: _0xF0(); break;
-			case 0xF3: _0xF3(); break;
-			case 0xFE: _0xFE(); break;
-			case 0xAF: _0xAF(); break;
-			default: _0x76(); break;
+		// Try to invoke the method for this operation.
+		// Halt and print a stack trace if something goes wrong.
+		try {
+			this.getClass().getDeclaredMethod("_" + hexb(opcode)).invoke(this);
+		} catch (NoSuchMethodException exception) {
+			_0x76();
+			exception.printStackTrace();
+		} catch (IllegalAccessException exception) {
+			_0x76();
+			exception.printStackTrace();
+		} catch (InvocationTargetException exception) {
+			_0x76();
+			exception.printStackTrace();
 		}
 
-		// Overhead?
+		// Clamp. Overhead?
 		a &= 0xFF;
 		f &= 0xFF;
 		b &= 0xFF;
