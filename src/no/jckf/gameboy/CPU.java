@@ -1,7 +1,6 @@
 package no.jckf.gameboy;
 
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 
 import static no.jckf.gameboy.Utils.*;
 
