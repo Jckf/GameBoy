@@ -1,27 +1,51 @@
 package no.jckf.gameboy;
 
+import static no.jckf.gameboy.Utils.*;
+
 public class CPU {
+	private static final int Z = 0x80;
+	private boolean z() { return (f & Z) != 0; }
+	private void z(boolean state) { if (state) { f |= Z; } else { f &= ~Z; } }
+
+	private static final int N = 0x40;
+	private boolean n() { return (f & N) != 0; }
+	private void n(boolean state) { if (state) { f |= N; } else { f &= ~N; } }
+
+	private static final int H = 0x20;
+	private boolean h() { return (f & N) != 0; }
+	private void h(boolean state) { if (state) { f |= H; } else { f &= ~H; } }
+
+	private static final int C = 0x10;
+	private boolean c() { return (f & c) != 0; }
+	private void c(boolean state) { if (state) { f |= C; } else { f &= ~C; } }
+
 	private MMU mmu;
-	private int a,f;
-	private int b,c;
-	private int d,e;
-	private int h,l;
-	private int sp,pc;
+
+	private boolean halted = false;
+
+	private int a = 1;
+	private int f = Z & H & C;
+
+	private int b = 0;
+	private int c = 0x13;
+	private int bc() { return ((c & 0xFF) << 8) | (b & 0xFF); }
+	private void bc(int data) { c = data >>> 8; b = data & 0xFF; }
+
+	private int d = 0;
+	private int e = 0xD8;
+
+	private int h = 1;
+	private int l = 0x4D;
+	private int hl() { return ((l & 0xFF) << 8) | (h & 0xFF); }
+	private void hl(int data) { l = data >>> 8; h = data & 0xFF; }
+
+	private int sp = 0xFFFE;
+	private int pc = 0x0100;
 
 	public CPU() {
 		mmu = MMU.getInstance();
 
-		a = 0x01;
-		f = 0xB0;
-		b = 0;
-		c = 0x13;
-		d = 0;
-		e = 0xD8;
-		h = 0x01;
-		l = 0x4D;
-		sp = 0xFFFE;
-		pc = 0x0100;
-
+		// Initial values for various IO ports.
 		mmu.writeByte(0xFF10,0x80);
 		mmu.writeByte(0xFF11,0xBF);
 		mmu.writeByte(0xFF12,0xF3);
@@ -40,209 +64,216 @@ public class CPU {
 		mmu.writeByte(0xFF40,0x91);
 		mmu.writeByte(0xFF42,0x91);
 		mmu.writeByte(0xFF43,0x91);
+		mmu.writeByte(0xFF44,0x91); // LCD y. Should really be 0x00, but that will get us stuck in a loop scrolling the Nintendo logo, as we have no GPU yet.
 		mmu.writeByte(0xFF45,0x91);
 		mmu.writeByte(0xFF47,0xFC);
 		mmu.writeByte(0xFF48,0xFF);
 		mmu.writeByte(0xFF49,0xFF);
+	}
 
-		main:
-		while (true) {
-			int opcode = mmu.readByte(pc) & 0xFF;
-			System.out.println("0x" + Integer.toHexString(pc) + " 0x" + Integer.toHexString(opcode));
-			pc++;
+	public boolean cycle() {
+		if (halted) return false;
 
-			switch (opcode) {
-				// NOP = No operation.
-				case 0x00:
-					break;
+		int opcode = mmu.readByte(pc++) & 0xFF;
 
-				// LD bc d16 = Copy the following 2 bytes into the b and c registers.
-				case 0x01:
-					c = mmu.readByte(pc);
-					b = mmu.readByte(pc + 1);
-					pc += 2;
-					break;
+		println(hexw(pc - 1) + " " + hexb(opcode));
 
-				// DEC bc = Decrement 16 bit bc register.
-				case 0x0B:
-					int _bc = bc() - 1;
-					bc(_bc);
-					if (_bc <= 0) {
-						f |= 0x80; // Set the zero flag.
-					} else {
-						f &= 0xEF; // Unset the zero flag.
-					}
-					break;
+		switch (opcode) {
+			case 0x00: _0x00(); break;
+			case 0x01: _0x01(); break;
+			case 0x0B: _0x0B(); break;
+			case 0x18: _0x18(); break;
+			case 0x20: _0x20(); break;
+			case 0x21: _0x21(); break;
+			case 0x23: _0x23(); break;
+			case 0x28: _0x28(); break;
+			case 0x31: _0x31(); break;
+			case 0x36: _0x36(); break;
+			case 0x3E: _0x3E(); break;
+			case 0x47: _0x47(); break;
+			case 0x76: _0x76(); break;
+			case 0x78: _0x78(); break;
+			case 0xB1: _0xB1(); break;
+			case 0xC3: _0xC3(); break;
+			case 0xCB: _0xCB(); break;
+			case 0xCD: _0xCD(); break;
+			case 0xE0: _0xE0(); break;
+			case 0xEA: _0xEA(); break;
+			case 0xF0: _0xF0(); break;
+			case 0xF3: _0xF3(); break;
+			case 0xFE: _0xFE(); break;
+			case 0xAF: _0xAF(); break;
+			default: _0x76(); break;
+		}
 
-				// JR r8 = Jump relative to current PC as defined by the following byte.
-				case 0x18:
-					pc += mmu.readByte(pc) + 1;
-					break;
+		// Overhead?
+		a &= 0xFF;
+		f &= 0xFF;
+		b &= 0xFF;
+		c &= 0xFF;
+		d &= 0xFF;
+		e &= 0xFF;
+		h &= 0xFF;
+		l &= 0xFF;
+		sp &= 0xFFFF;
+		pc &= 0xFFFF;
 
-				// JR nz r8 = Jump relative to current PC as defined by the following byte if zero flag is set.
-				case 0x20:
-					if ((f & 0x80) != 0) {
-						pc += mmu.readByte(pc);
-					}
-					pc++;
-					break;
+		return true;
+	}
 
-				// LD hl d16 = Copy the following two bytes into high and low registers.
-				case 0x21:
-					l = mmu.readByte(pc);
-					h = mmu.readByte(pc + 1);
-					pc += 2;
-					break;
+	// NOP = No operation.
+	private void _0x00() {
 
-				// INC hl
-				case 0x23:
-					hl(hl() + 1);
-					break;
+	}
 
-				// JR z r8 = Jump relative to current PC as defined by next byte if zero flag is set.
-				case 0x28:
-					if ((f & 0x80) != 0) {
-						pc += mmu.readByte(pc);
-					}
-					pc++;
-					break;
+	// LD bc d16 = Copy the following 2 bytes into the b and c registers.
+	private void _0x01() {
+		c = mmu.readByte(pc++);
+		b = mmu.readByte(pc++);
+	}
 
-				// LD sp d16 = Copy the following word into the stack pointer.
-				case 0x31:
-					sp = mmu.readWord(pc);
-					pc += 2;
-					break;
+	// DEC bc = Decrement 16 bit bc register.
+	private void _0x0B() {
+		int _bc = bc() - 1;
+		bc(_bc);
 
-				// LD (hl) d8 = Copy the following byte into the address defined by the high and low registers.
-				case 0x36:
-					mmu.writeByte(hl(),mmu.readByte(pc));
-					pc++;
-					break;
-
-				// LD a d8 = Copy the following byte into the accumulator.
-				case 0x3E:
-					a = mmu.readByte(pc);
-					pc++;
-					break;
-
-				// LD b a = Copy the accumulator's value into the b register.
-				case 0x47:
-					b = a;
-					break;
-
-				// LD a b = Copy register b's value into the accumulator.
-				case 0x78:
-					a = b;
-					break;
-
-				// OR c = "Or" register c against the accumulator.
-				case 0xB1:
-					a |= c;
-					if (a <= 0) {
-						f = 0x80; // Set the zero flag, unset all others.
-					} else {
-						f = 0; // Unset the zero flag, and all others.
-					}
-					break;
-
-				// JP a16 = Jump to absolute address defined in the following word.
-				case 0xC3:
-					pc = mmu.readWord(pc);
-					break;
-
-				// Multi-byte opcode.
-				case 0xCB:
-					int cbcode = mmu.readByte(pc) & 0xFF;
-					System.out.println("0x" + Integer.toHexString(pc) + "      0x" + Integer.toHexString(cbcode));
-					pc++;
-
-					switch (cbcode) {
-						// RES 0 a = Reset bit 0 of accumulator.
-						case 0x87:
-							a &= 0xFE;
-							break;
-
-						default:
-							break main;
-					}
-					break;
-
-				// CALL a16 = Move down the stack and jump to address defined in the following word.
-				case 0xCD:
-					// Hack to skip the scrolling Nintendo logo that doesn't scroll.
-					// I'm guessing the GPU should be scrolling it, but we don't have a GPU yet!
-					if (pc - 1 == 0x1F74) {
-						pc += 2;
-						break;
-					}
-					sp -= 2;
-					mmu.writeWord(sp,pc + 2);
-					pc = mmu.readWord(pc);
-					break;
-
-				// LDH (a8) a = Copy accumulator value to IO port defined in the following byte.
-				case 0xE0:
-					mmu.writeByte(0xFF00 + mmu.readByte(pc),a);
-					pc++;
-					break;
-
-				// LD a16 a = Copy accumulator value into address defined in the following word.
-				case 0xEA:
-					mmu.writeByte(mmu.readWord(pc),a);
-					pc += 2;
-					break;
-
-				// LDH a (a8) = Copy from given IO port into accumulator.
-				case 0xF0:
-					a = mmu.readByte(0xFF00 + mmu.readByte(pc));
-					pc++;
-					break;
-
-				// DI = Disable interrupts.
-				case 0xF3:
-					break;
-
-				// CP d8 = Compare the following byte to accumulator.
-				case 0xFE:
-					int b = mmu.readByte(pc) & 0xFF;
-					System.out.println(b + " =? " + a);
-					if (b == a) {
-						f |= 0x80; // Set zero flag.
-					} else {
-						f &= 0xEF; // Unset zero flag.
-					}
-					f |= 0x40; // Ser operation flag.
-					pc++;
-					break;
-
-				// XOR a = "Exclusive or" accumulator against itself, effectively zeroing it out.
-				case 0xAF:
-					a = 0;
-					f |= 0x80; // Ser zero flag.
-					break;
-
-				// Da fuq?
-				default:
-					break main;
-			}
+		if (_bc <= 0) {
+			z(true);
+		} else {
+			z(false);
 		}
 	}
 
-	private int hl() {
-		return ((l & 0xFF) << 8) | (h & 0xFF);
+	// JR r8 = Jump relative to current PC as defined by the following byte.
+	private void _0x18() {
+		pc += mmu.readByte(pc) + 1;
 	}
 
-	private void hl(int data) {
-		l = data >>> 8;
-		h = data & 0xFF;
+	// JR nz r8 = Jump relative to current PC as defined by the following byte if zero flag isn't set.
+	private void _0x20() {
+		if (!z()) pc += mmu.readByte(pc);
+		pc++;
 	}
 
-	private int bc() {
-		return ((c & 0xFF) << 8) | (b & 0xFF);
+	// LD hl d16 = Copy the following two bytes (word) into high and low registers (16 bit hl register).
+	private void _0x21() {
+		l = mmu.readByte(pc++);
+		h = mmu.readByte(pc++);
 	}
 
-	private void bc(int data) {
-		c = data >>> 8;
-		b = data & 0xFF;
+	// INC hl = Increment the 16 bit hl register.
+	private void _0x23() {
+		hl(hl() + 1);
+	}
+
+	// JR z r8 = Jump relative to current PC as defined by next byte if zero flag is set.
+	private void _0x28() {
+		if (z()) pc += mmu.readByte(pc);
+		pc++;
+	}
+
+	// LD sp d16 = Copy the following word into the stack pointer.
+	private void _0x31() {
+		sp = mmu.readWord(pc);
+		pc += 2;
+	}
+
+	// LD (hl) d8 = Copy the following byte into the address defined by the high and low registers.
+	private void _0x36() {
+		mmu.writeByte(hl(),mmu.readByte(pc++));
+	}
+
+	// LD a d8 = Copy the following byte into the accumulator.
+	private void _0x3E() {
+		a = mmu.readByte(pc++);
+	}
+
+	// LD b a = Copy the accumulator's value into the b register.
+	private void _0x47() {
+		b = a;
+	}
+
+	// HALT = Stop execution.
+	private void _0x76() {
+		halted = true;
+	}
+
+	// LD a b = Copy register b's value into the accumulator.
+	private void _0x78() {
+		a = b;
+	}
+
+	// OR c = "Or" register c against the accumulator.
+	private void _0xB1() {
+		a |= c;
+
+		if (a == 0) {
+			f = Z; // Set the zero flag, unset all others.
+		} else {
+			f = 0; // Unset the zero flag, and all others.
+		}
+	}
+
+	// JP a16 = Jump to absolute address defined in the following word.
+	private void _0xC3() {
+		pc = mmu.readWord(pc);
+	}
+
+	// 0xCB prefixed opcodes.
+	private void _0xCB() {
+		int opcode = mmu.readByte(pc++) & 0xFF;
+
+		println(hexw(pc - 1) + " 0xCB " + hexb(opcode));
+
+		switch (opcode) {
+			case 0x87: _0xCB87(); break;
+			default: _0x76(); break;
+		}
+	}
+
+	// RES 0 a = Reset bit 0 of accumulator.
+	private void _0xCB87() {
+		a &= 0xFE;
+	}
+
+	// CALL a16 = Move down the stack and jump to address defined in the following word.
+	private void _0xCD() {
+		sp -= 2; // Move back to make room for PC.
+		mmu.writeWord(sp,pc + 2); // Copy old PC to stack.
+		pc = mmu.readWord(pc); // Jump to wherever.
+	}
+
+	// LDH (a8) a = Copy accumulator value to IO port defined in the following byte.
+	private void _0xE0() {
+		mmu.writeByte(0xFF00 + mmu.readByte(pc++),a);
+	}
+
+	// LD a16 a = Copy accumulator value into address defined in the following word.
+	private void _0xEA() {
+		mmu.writeByte(mmu.readWord(pc),a);
+		pc += 2;
+	}
+
+	// LDH a (a8) = Copy from given IO port into accumulator.
+	private void _0xF0() {
+		a = mmu.readByte(0xFF00 + mmu.readByte(pc++));
+	}
+
+	// DI = Disable interrupts.
+	private void _0xF3() {
+
+	}
+
+	// CP d8 = Compare the following byte to accumulator.
+	private void _0xFE() {
+		int b = mmu.readByte(pc++) & 0xFF;
+		if (b == a) { z(true); } else { z(false); }
+		n(true);
+	}
+
+	// XOR a = "Exclusive or" accumulator against itself, effectively zeroing it out.
+	private void _0xAF() {
+		a = 0;
+		z(true);
 	}
 }

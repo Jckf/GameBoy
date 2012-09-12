@@ -5,5 +5,8 @@ public class GameBoy {
 		ROM rom = new ROM("pokemon.gb");
 		MMU mmu = new MMU();
 		CPU cpu = new CPU();
+
+		// Hi-tech clock speed control...
+		while (cpu.cycle());
 	}
 }
