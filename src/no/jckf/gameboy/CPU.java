@@ -6,20 +6,9 @@ import static no.jckf.gameboy.Utils.*;
 
 public class CPU {
 	private static final int Z = 0x80;
-	private boolean z() { return (f & Z) != 0; }
-	private void z(boolean state) { if (state) { f |= Z; } else { f &= ~Z; } }
-
 	private static final int N = 0x40;
-	private boolean n() { return (f & N) != 0; }
-	private void n(boolean state) { if (state) { f |= N; } else { f &= ~N; } }
-
 	private static final int H = 0x20;
-	private boolean h() { return (f & H) != 0; }
-	private void h(boolean state) { if (state) { f |= H; } else { f &= ~H; } }
-
 	private static final int C = 0x10;
-	private boolean c() { return (f & C) != 0; }
-	private void c(boolean state) { if (state) { f |= C; } else { f &= ~C; } }
 
 	private MMU mmu;
 
@@ -27,6 +16,16 @@ public class CPU {
 
 	private int a = 1;
 	private int f = Z | H | C;
+
+	private boolean z() { return (f & Z) != 0; }
+	private boolean n() { return (f & N) != 0; }
+	private boolean h() { return (f & H) != 0; }
+	private boolean c() { return (f & C) != 0; }
+
+	private void z(boolean state) { if (state) { f |= Z; } else { f &= ~Z; } }
+	private void n(boolean state) { if (state) { f |= N; } else { f &= ~N; } }
+	private void h(boolean state) { if (state) { f |= H; } else { f &= ~H; } }
+	private void c(boolean state) { if (state) { f |= C; } else { f &= ~C; } }
 
 	private int b = 0;
 	private int c = 0x13;
@@ -79,7 +78,7 @@ public class CPU {
 		int opcode = mmu.readByte(pc++) & 0xFF;
 
 		println(hexw(pc - 1) + " " + hexb(opcode) + " " +
-		    (z() ? "Z" : "-") +
+			(z() ? "Z" : "-") +
 			(n() ? "N" : "-") +
 			(h() ? "H" : "-") +
 			(c() ? "C" : "-")
