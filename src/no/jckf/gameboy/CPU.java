@@ -93,7 +93,7 @@ public class CPU {
 		// Try to invoke the method for this operation.
 		// Halt and print a stack trace if something goes wrong.
 		try {
-			this.getClass().getDeclaredMethod("_" + hexb(opcode)).invoke(this);
+			getClass().getDeclaredMethod("_" + hexb(opcode)).invoke(this);
 		} catch (NoSuchMethodException exception) {
 			_0x76();
 			exception.printStackTrace();
