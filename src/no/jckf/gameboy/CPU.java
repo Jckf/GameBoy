@@ -5,18 +5,33 @@ import java.lang.reflect.InvocationTargetException;
 import static no.jckf.gameboy.Utils.*;
 
 public class CPU {
+	// Constants.
 	private static final int Z = 0x80;
 	private static final int N = 0x40;
 	private static final int H = 0x20;
 	private static final int C = 0x10;
 
+	// Other components.
 	private MMU mmu;
 
+	// System variables.
 	private boolean halted = false;
 
+	// Registers.
 	private int a = 1;
 	private int f = Z | H | C;
+	private int b = 0;
+	private int c = 0x13;
+	private int d = 0;
+	private int e = 0xD8;
+	private int h = 1;
+	private int l = 0x4D;
 
+	// Pointers.
+	private int sp = 0xFFFE;
+	private int pc = 0x0100;
+
+	// Flag short-hand methods.
 	private boolean z() { return (f & Z) != 0; }
 	private boolean n() { return (f & N) != 0; }
 	private boolean h() { return (f & H) != 0; }
@@ -27,21 +42,12 @@ public class CPU {
 	private void h(boolean state) { if (state) { f |= H; } else { f &= ~H; } }
 	private void c(boolean state) { if (state) { f |= C; } else { f &= ~C; } }
 
-	private int b = 0;
-	private int c = 0x13;
+	// Register short-hand methods.
 	private int bc() { return ((c & 0xFF) << 8) | (b & 0xFF); }
-	private void bc(int data) { c = data >>> 8; b = data & 0xFF; }
-
-	private int d = 0;
-	private int e = 0xD8;
-
-	private int h = 1;
-	private int l = 0x4D;
 	private int hl() { return ((l & 0xFF) << 8) | (h & 0xFF); }
-	private void hl(int data) { l = data >>> 8; h = data & 0xFF; }
 
-	private int sp = 0xFFFE;
-	private int pc = 0x0100;
+	private void bc(int data) { c = data >>> 8; b = data & 0xFF; }
+	private void hl(int data) { l = data >>> 8; h = data & 0xFF; }
 
 	public CPU() {
 		mmu = MMU.getInstance();
