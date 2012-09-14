@@ -12,28 +12,20 @@ public class MMU {
 
 		memory = new byte[0xFFFF];
 		rom = ROM.getInstance();
+
+		// This can probably be done better.
+		// Perhaps move ROM handling into the MMU?
+		for (int i = 0x0000; i < 0x8000; i++) {
+			memory[i] = rom.read(i);
+		}
 	}
 
 	public static MMU getInstance() {
 		return instance == null ? null : instance;
 	}
 
-	public byte[] readBytes(int offset,int length) {
-		if (offset < 0x8000) {
-			return rom.read(offset,length);
-		} else {
-			if (length == 1) {
-				return new byte[]{memory[offset]};
-			} else {
-				return Arrays.copyOfRange(memory,offset,offset + length);
-			}
-		}
-	}
-
 	public byte readByte(int offset) {
-		// Not sure if this nesting is all that good,
-		// but I'd rather not duplicate the offset checks.
-		return readBytes(offset,1)[0];
+		return memory[offset];
 	}
 
 	public void writeByte(int offset,byte data) {
@@ -52,8 +44,7 @@ public class MMU {
 	}
 
 	public int readWord(int offset) {
-		byte[] b = readBytes(offset,2);
-		return ((b[1] & 0xFF) << 8) | (b[0] & 0xFF);
+		return ((readByte(offset + 1) & 0xFF) << 8) | (readByte(offset) & 0xFF);
 	}
 
 	public void writeWord(int offset,int data) {
