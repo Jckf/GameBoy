@@ -72,7 +72,7 @@ public class CPU {
 		mmu.writeByte(0xFF40,0x91);
 		mmu.writeByte(0xFF42,0x91);
 		mmu.writeByte(0xFF43,0x91);
-		mmu.writeByte(0xFF44,0x91); // LCD y. Should really be 0x00, but that will get us stuck in a loop scrolling the Nintendo logo, as we have no GPU yet.
+		//mmu.writeByte(0xFF44,0x91); // LCD y. Should really be 0x00, but that will get us stuck in a loop scrolling the Nintendo logo, as we have no GPU yet.
 		mmu.writeByte(0xFF45,0x91);
 		mmu.writeByte(0xFF47,0xFC);
 		mmu.writeByte(0xFF48,0xFF);
@@ -89,31 +89,44 @@ public class CPU {
 
 		int opcode = mmu.readByte(pc++) & 0xFF;
 
-		println(
+		/*println(
 			hexw(pc - 1) + " " +
 			hexb(opcode) + " " +
 			(z() ? "Z" : "-") +
 			(n() ? "N" : "-") +
 			(h() ? "H" : "-") +
 			(c() ? "C" : "-")
-		);
+		);*/
 
-		// Try to invoke the method for this operation.
-		// Print a stack trace and stop execution if something goes wrong.
-		try {
-			getClass().getDeclaredMethod("_" + hexb(opcode)).invoke(this);
-		} catch (NoSuchMethodException exception) {
-			exception.printStackTrace();
-			return false;
-		} catch (IllegalAccessException exception) {
-			exception.printStackTrace();
-			return false;
-		} catch (InvocationTargetException exception) {
-			exception.printStackTrace();
-			return false;
+		switch (opcode) {
+			case 0x00: _0x00(); break;
+			case 0x01: _0x01(); break;
+			case 0x0B: _0x0B(); break;
+			case 0x18: _0x18(); break;
+			case 0x20: _0x20(); break;
+			case 0x21: _0x21(); break;
+			case 0x23: _0x23(); break;
+			case 0x28: _0x28(); break;
+			case 0x31: _0x31(); break;
+			case 0x36: _0x36(); break;
+			case 0x3E: _0x3E(); break;
+			case 0x47: _0x47(); break;
+			case 0x76: _0x76(); break;
+			case 0x78: _0x78(); break;
+			case 0xAF: _0xAF(); break;
+			case 0xB1: _0xB1(); break;
+			case 0xC3: _0xC3(); break;
+			case 0xCB: _0xCB(); break;
+			case 0xCD: _0xCD(); break;
+			case 0xE0: _0xE0(); break;
+			case 0xEA: _0xEA(); break;
+			case 0xF0: _0xF0(); break;
+			case 0xF3: _0xF3(); break;
+			case 0xFE: _0xFE(); break;
+			default: return false;
 		}
 
-		// Clamp. Overhead?
+		// Clamp.
 		a &= 0xFF;
 		f &= 0xFF;
 		b &= 0xFF;
