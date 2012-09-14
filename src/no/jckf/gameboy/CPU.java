@@ -80,16 +80,18 @@ public class CPU {
 	}
 
 	public boolean cycle() {
-		if (halted) return false;
-
 		if (cycles != 0) {
 			cycles--;
 			return true;
 		}
 
+		if (halted) return true;
+
 		int opcode = mmu.readByte(pc++) & 0xFF;
 
-		println(hexw(pc - 1) + " " + hexb(opcode) + " " +
+		println(
+			hexw(pc - 1) + " " +
+			hexb(opcode) + " " +
 			(z() ? "Z" : "-") +
 			(n() ? "N" : "-") +
 			(h() ? "H" : "-") +
@@ -97,18 +99,18 @@ public class CPU {
 		);
 
 		// Try to invoke the method for this operation.
-		// Halt and print a stack trace if something goes wrong.
+		// Print a stack trace and stop execution if something goes wrong.
 		try {
 			getClass().getDeclaredMethod("_" + hexb(opcode)).invoke(this);
 		} catch (NoSuchMethodException exception) {
-			_0x76();
 			exception.printStackTrace();
+			return false;
 		} catch (IllegalAccessException exception) {
-			_0x76();
 			exception.printStackTrace();
+			return false;
 		} catch (InvocationTargetException exception) {
-			_0x76();
 			exception.printStackTrace();
+			return false;
 		}
 
 		// Clamp. Overhead?
